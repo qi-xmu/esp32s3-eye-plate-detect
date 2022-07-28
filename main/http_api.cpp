@@ -46,36 +46,42 @@ esp_err_t _http_event_handle(esp_http_client_event_t *evt) {
 esp_err_t http_api_hander(int dire, uint8_t *jpg_buf, size_t jpg_size) {
     int body_header_size = strlen(body_header);
     int boundary_size = strlen(boundary);
-    ets_printf("body_header_size %d\n", body_header_size);
 
     char *body_data = (char *)malloc(1024 + jpg_size);
     memset(body_data, 0, 1024 + jpg_size);
+    // 设置方向
+    char *query =  (char *)malloc(128);
+    sprintf(query, "dire=%d", dire);
+    ets_printf("%s\n", query);
 
     esp_http_client_config_t config = {
         .host = ESP_SERVER_HOST, // default "192.168.8.125"
         .port = ESP_SERVER_PORT, // default 6123
         .path = ESP_SERVER_PATH, // default "/api/v1/services/test"
-        .method = HTTP_METHOD_POST,
+        .query = query,  // "dire=%d", dire
+        .method = HTTP_METHOD_POST, // 
         .event_handler = _http_event_handle,
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
+    // http header
     esp_http_client_set_header(
         client, "Content-Type",
         "multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW");
-
+    // http body
     memcpy(body_data, body_header, body_header_size);
     memcpy(body_data + body_header_size, jpg_buf, jpg_size);
     memcpy(body_data + body_header_size + jpg_size, boundary, boundary_size);
-
     esp_http_client_set_post_field(client, body_data,
                                    body_header_size + boundary_size + jpg_size);
+    // 发送请求
     esp_err_t err = esp_http_client_perform(client);
-
+    // 请求结果
     if (err == ESP_OK) {
         ESP_LOGI(TAG, "Status = %d, content_length = %d",
                  esp_http_client_get_status_code(client),
                  esp_http_client_get_content_length(client));
     }
+    free(body_data);
     esp_http_client_cleanup(client);
     return ESP_OK;
 }

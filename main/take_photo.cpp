@@ -38,9 +38,9 @@ static void task_process_handler(void *arg) {
 
     size_t _jpg_buf_len = 0;
     uint8_t *_jpg_buf = NULL;
-    int dire = 0; // out
 
     while (true) {
+        int dire = 0; // out
         xSemaphoreTake(xMutex, portMAX_DELAY);
         _gEvent = gEvent;
         gEvent = IDLE;
