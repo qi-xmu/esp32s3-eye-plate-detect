@@ -1,5 +1,3 @@
-#include "esp_http_client.h"
-#include "esp_log.h"
 #include "http_api.hpp"
 
 static const char *TAG = "esp_http_client";
@@ -10,6 +8,7 @@ static const char *body_header =
     "image/jpeg\r\n\r\n";
 static const char *boundary =
     "\r\n------WebKitFormBoundary7MA4YWxkTrZu0gW--\r\n";
+
 
 /* http client  */
 esp_err_t _http_event_handle(esp_http_client_event_t *evt) {
@@ -43,23 +42,27 @@ esp_err_t _http_event_handle(esp_http_client_event_t *evt) {
     return ESP_OK;
 }
 
-esp_err_t http_api_hander(int dire, uint8_t *jpg_buf, size_t jpg_size) {
+static int dire;
+static uint8_t *_jpg_buf;
+static size_t _jpg_size;
+
+static void http_api_hander(void *arg) {
     int body_header_size = strlen(body_header);
     int boundary_size = strlen(boundary);
 
-    char *body_data = (char *)malloc(1024 + jpg_size);
-    memset(body_data, 0, 1024 + jpg_size);
+    char *body_data = (char *)malloc(1024 + _jpg_size);
+    memset(body_data, 0, 1024 + _jpg_size);
     // 设置方向
-    char *query =  (char *)malloc(128);
+    char *query = (char *)malloc(128);
     sprintf(query, "dire=%d", dire);
     ets_printf("%s\n", query);
 
     esp_http_client_config_t config = {
-        .host = ESP_SERVER_HOST, // default "192.168.8.125"
-        .port = ESP_SERVER_PORT, // default 6123
-        .path = ESP_SERVER_PATH, // default "/api/v1/services/test"
-        .query = query,  // "dire=%d", dire
-        .method = HTTP_METHOD_POST, // 
+        .host = ESP_SERVER_HOST,    // default "192.168.8.125"
+        .port = ESP_SERVER_PORT,    // default 6123
+        .path = ESP_SERVER_PATH,    // default "/api/v1/services/test"
+        .query = query,             // "dire=%d", dire
+        .method = HTTP_METHOD_POST, //
         .event_handler = _http_event_handle,
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
@@ -69,10 +72,10 @@ esp_err_t http_api_hander(int dire, uint8_t *jpg_buf, size_t jpg_size) {
         "multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW");
     // http body
     memcpy(body_data, body_header, body_header_size);
-    memcpy(body_data + body_header_size, jpg_buf, jpg_size);
-    memcpy(body_data + body_header_size + jpg_size, boundary, boundary_size);
+    memcpy(body_data + body_header_size, _jpg_buf, _jpg_size);
+    memcpy(body_data + body_header_size + _jpg_size, boundary, boundary_size);
     esp_http_client_set_post_field(client, body_data,
-                                   body_header_size + boundary_size + jpg_size);
+                                   body_header_size + boundary_size + _jpg_size);
     // 发送请求
     esp_err_t err = esp_http_client_perform(client);
     // 请求结果
@@ -81,7 +84,17 @@ esp_err_t http_api_hander(int dire, uint8_t *jpg_buf, size_t jpg_size) {
                  esp_http_client_get_status_code(client),
                  esp_http_client_get_content_length(client));
     }
-    free(body_data);
     esp_http_client_cleanup(client);
-    return ESP_OK;
+    free(body_data);
+    free(query);
+
+    vTaskDelete(NULL);
+}
+
+void http_api(int dire, uint8_t *jpg_buf, size_t jpg_size) {
+    // _jpg_buf = (uint8_t *)malloc(jpg_size);
+    // memccpy(_jpg_buf, jpg_buf, jpg_size);
+    _jpg_buf = jpg_buf;
+    _jpg_size = jpg_size;
+    xTaskCreatePinnedToCore(http_api_hander, TAG, 4 * 1024, NULL, 5, NULL, 1);
 }

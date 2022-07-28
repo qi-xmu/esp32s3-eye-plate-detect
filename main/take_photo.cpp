@@ -59,7 +59,7 @@ static void task_process_handler(void *arg) {
                     _jpg_buf = frame->buf;
                     _jpg_buf_len = frame->len;
                 } else if (frame2jpg(frame, 80, &_jpg_buf, &_jpg_buf_len)) {
-                    http_api_hander(dire, _jpg_buf, _jpg_buf_len);
+                    http_api(dire, _jpg_buf, _jpg_buf_len);
                 } else {
                     ESP_LOGE(TAG, "JPEG compression failed");
                 }
